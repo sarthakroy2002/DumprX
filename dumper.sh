@@ -1234,12 +1234,16 @@ otaver=$(
 [[ -n "$otaver" && -z "$fingerprint" ]] && branch=$(echo "$otaver" | tr ' ' '-')
 branch=${branch:-$(echo "$description" | tr ' ' '-')}
 
+rand=$(printf "%06d" $((RANDOM % 1000000)))
+
 if [[ "$PUSH_TO_GITLAB" = true ]]; then
 	rm -rf .github_token
-	repo=$(printf "${brand}" | tr '[:upper:]' '[:lower:]' && echo -e "/${codename}")
+	repo=$(printf "${brand}" | tr '[:upper:]' '[:lower:]' && echo -e "/${codename}"_"${rand}")
+	repo=$(echo "${repo}" | tr '[:upper:]' '[:lower:]')
 else
 	rm -rf .gitlab_token
-	repo=$(echo "${brand}"_"${codename}"_dump | tr '[:upper:]' '[:lower:]')
+	repo=$(echo "${brand}"_"${codename}"_dump_"${rand}" | tr '[:upper:]' '[:lower:]')
+	repo=$(echo "${repo}" | tr '[:upper:]' '[:lower:]')
 fi
 
 platform=$(echo "${platform}" | tr '[:upper:]' '[:lower:]' | tr -dc '[:print:]' | tr '_' '-' | cut -c 1-35)
@@ -1515,7 +1519,7 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	curl -s \
 	--header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
 	-X POST \
-	"${GITLAB_HOST}/api/v4/projects?name=${codename}&namespace_id=${SUBGRP_ID}&visibility=public"
+	"${GITLAB_HOST}/api/v4/projects?name=${repo}&namespace_id=${SUBGRP_ID}&visibility=public"
 
 	# Get Project/Repo ID
 	get_gitlab_project_id(){
@@ -1528,7 +1532,7 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 			[[ "$TMP_I" == "$PROJ" ]] && cat /tmp/proj.txt | head -$(("$i"+1)) | tail -1 > "$3"
 		done
 		}
-	get_gitlab_project_id ${codename} ${SUBGRP_ID} /tmp/proj_id.txt
+	get_gitlab_project_id ${repo} ${SUBGRP_ID} /tmp/proj_id.txt
 	PROJECT_ID=$(< /tmp/proj_id.txt)
 
 	# Delete the Temporary Files
@@ -1551,13 +1555,6 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 		commit_and_push
 		sleep 1
 	done
-
-	# Update the Default Branch
-	curl	--request PUT \
-		--header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
-		--url ''"${GITLAB_HOST}"'/api/v4/projects/'"${PROJECT_ID}"'' \
-		--data "default_branch=${branch}"
-	printf "\n"
 
 	# Telegram channel post
 	if [[ -s "${PROJECT_DIR}"/.tg_token ]]; then
