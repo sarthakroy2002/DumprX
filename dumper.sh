@@ -1548,12 +1548,30 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	printf "\n"
 
 	# Push to GitLab
-	while [[ ! $(curl -sL "${GITLAB_HOST}/${GIT_ORG}/${repo}/-/raw/${branch}/all_files.txt" | grep "all_files.txt") ]]
-	do
-		printf "\nPushing to %s via SSH...\nBranch:%s\n" "${GITLAB_HOST}/${GIT_ORG}/${repo}.git" "${branch}"
-		sleep 1
+	printf "\nPushing to %s via SSH...\nBranch:%s\n" "${GITLAB_HOST}/${GIT_ORG}/${repo}.git" "${branch}"
+
+	# Ensure upstream exists
+	git branch --set-upstream-to=origin/"${branch}" 2>/dev/null || true
+
+	while :; do
+		# Count commits ahead of remote
+		ahead=$(git rev-list --count @{u}..HEAD 2>/dev/null)
+
+		# If no upstream yet (first push case)
+		if [[ -z "$ahead" ]]; then
+			commit_and_push
+			git fetch origin "${branch}" 2>/dev/null
+			continue
+		fi
+
+		if [[ "$ahead" -eq 0 ]]; then
+			echo "All commits pushed successfully."
+			break
+		fi
+
+		echo "${ahead} commits remaining to push..."
 		commit_and_push
-		sleep 1
+		sleep 2
 	done
 
 	# Telegram channel post
