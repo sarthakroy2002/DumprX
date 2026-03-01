@@ -1250,46 +1250,10 @@ manufacturer=$(echo "${manufacturer}" | tr '[:upper:]' '[:lower:]' | tr -dc '[:p
 printf "## %s\n- Manufacturer: %s\n- Platform: %s\n- Codename: %s\n- Brand: %s\n- Flavor: %s\n- Release Version: %s\n- Kernel Version: %s\n- Id: %s\n- Incremental: %s\n- Tags: %s\n- CPU Abilist: %s\n- A/B Device: %s\n- Treble Device: %s\n- Locale: %s\n- Screen Density: %s\n- Fingerprint: %s\n- OTA version: %s\n- Branch: %s\n- Repo: %s\n" "${description}" "${manufacturer}" "${platform}" "${codename}" "${brand}" "${flavor}" "${release}" "${kernel_version}" "${id}" "${incremental}" "${tags}" "${abilist}" "${is_ab}" "${treble_support}" "${locale}" "${density}" "${fingerprint}" "${otaver}" "${branch}" "${repo}" > "${OUTDIR}"/README.md
 cat "${OUTDIR}"/README.md
 
-# Generate TWRP Trees
-twrpdtout="twrp-device-tree"
-if [[ "$is_ab" = true ]]; then
-	if [ -f recovery.img ]; then
-		printf "Legacy A/B with recovery partition detected...\n"
-		twrpimg="recovery.img"
-	else
-	twrpimg="boot.img"
-	fi
-else
-	twrpimg="recovery.img"
-fi
-if [[ -f ${twrpimg} ]]; then
-	mkdir -p $twrpdtout
-	uvx --from git+https://github.com/twrpdtgen/twrpdtgen@master twrpdtgen $twrpimg -o $twrpdtout
-	if [[ "$?" = 0 ]]; then
-		[[ ! -e "${OUTDIR}"/twrp-device-tree/README.md ]] && curl https://raw.githubusercontent.com/wiki/SebaUbuntu/TWRP-device-tree-generator/4.-Build-TWRP-from-source.md > ${twrpdtout}/README.md
-	fi
-fi
-
-# Remove all .git directories from twrpdtout
-rm -rf $(find $twrpdtout -type d -name ".git")
-
 # copy file names
 chown "$(whoami)" ./* -R
 chmod -R u+rwX ./*		#ensure final permissions
 find "$OUTDIR" -type f -printf '%P\n' | sort | grep -v ".git/" > "$OUTDIR"/all_files.txt
-
-# Generate LineageOS Trees
-if [[ "$treble_support" = true ]]; then
-        aospdtout="lineage-device-tree"
-        mkdir -p $aospdtout
-        uvx aospdtgen $OUTDIR -o $aospdtout
-
-        # Remove all .git directories from aospdtout
-        rm -rf $(find $aospdtout -type d -name ".git")
-
-        # Regenerate all_files.txt
-        find "$OUTDIR" -type f -printf '%P\n' | sort | grep -v ".git/" > "$OUTDIR"/all_files.txt
-fi
 
 # Generate Files having the sha1sum values of the Blobs
 function write_sha1sum(){
